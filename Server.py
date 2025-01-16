@@ -9,58 +9,57 @@ server.bind((SERVER_IP, SERVER_PORT))
 print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 
 clients = {}  #username:socket
-chats = {}  #chatid:[users]
+
+
+def handle_message(username: str, chatid: str, time: str, message: str):
+    ...
+
+
+def login(username: str, password: str):
+    return True
+
+
+def create_user(clientusername: str, password: str):
+    if not clients[username]:
+        clients[username] = hash(password)
+        client_socket
+        return True
+    else:
+        return False
+
+
+def create_chat(username: str, settings: dict):
+    ...
+
+
+def delete_user(username: str, password: str):
+    ...
+
+
+def delete_chat(username: str, password: str, chatid: str):
+    ...
+
+
+def join_chat(username: str, chatid: str):
+    ...
+
+
+def leave_chat(username: str, chatid: str):
+    ...
+
+
+def logout(username: str):
+    ...
+
 
 def handle_client(client_socket):
-    client_socket.send(b"Welcome to the chat server. Type your username and press enter to join the chat.\n")
-    username = client_socket.recv(1024).decode().strip()
-    clients[username] = client_socket
-    print(f"{username} has connected.")
-
     while True:
-        client_socket.send(b"Connect to general chat (G), join a chat (J), or create a new chat (C)?\n")
-        choice = client_socket.recv(1024).decode().strip().lower()
-        if choice.startswith(("g","j","c")):
-            break
-        else:
-            client_socket.send(b"Invalid choice. Please enter G, J, or C to choose an option.\n")
-
-    if choice == "g":
-        chatid = "general"
-        if chatid not in chats:
-            chats[chatid] = [username]
-    elif choice == "j":
-        client_socket.send(b"Enter the chat ID of the chat you want to join:\n")
-        chatid = client_socket.recv(1024).decode().strip()
-        if chatid not in chats:
-            client_socket.send(b"Invalid chat ID. Please enter a valid chat ID.\n")
-    elif choice == "c":
-        client_socket.send(b"Enter the name of the new chat:\n")
-        chatid = client_socket.recv(1024).decode().strip()
-        if chatid in chats:
-            client_socket.send(b"Invalid Chat ID. Please enter a different chat ID.\n")
-        else:
-            chats[chatid] = [username]
-
-    chats[chatid].append(username)
-    print(f"{username} has joined the chat {chatid}.")
-    clients[username].send(f"You have joined the chat {chatid}.\n".encode())
-
-    while True:
+        message = client_socket.recv(1024).decode()
         try:
-            message = client_socket.recv(1024).decode().strip()
-            for user in chats[chatid]:
-                if user == username:
-                    continue
-                clients[user].send(f"{username}: {message}\n".encode())
+            command, *args = message.split()
+            commands[command](*args)
         except:
-            del clients[username]
-            if chatid in chats:
-                if username in chats[chatid]:
-                    chats[chatid].remove(username)
-                if len(chats[chatid]) == 0:
-                    del chats[chatid]
-            print(f"{username} has disconnected.")
+            client_socket.close()
             break
 
 
@@ -73,4 +72,37 @@ def start():
         client_thread.start()
 
 if __name__ == "__main__":
+    """
+    commands:
+    MSG <username> <chatid> <time/date> <message>  (message)
+        MSGSENT
+    LGN <username> <password>                      (login)
+        SUCCESS/FAILURE
+    CTU <username> <password>                      (create user)
+        CREATED
+    CTC <username> <chatsettings>                  (create chat)
+        CREATED
+    DLU <username> <password>                      (delete user)
+        DELETED
+    DLC <username> <password>                      (delete chat)
+        DELETED
+    JCH <username> <chatid>                        (join chat)
+        CHTJOIN
+    LCH <username> <chatid>                        (leave chat)
+        CHTLEFT
+    LGT <username>                                 (logout)
+        ULOGOUT
+    """
+
+    commands = {
+        "MSG": handle_message,
+        "LGN": login,
+        "CTU": create_user,
+        "CTC": create_chat,
+        "DLU": delete_user,
+        "DLC": delete_chat,
+        "JCH": join_chat,
+        "LCH": leave_chat,
+        "LGT": logout
+    }
     start()
