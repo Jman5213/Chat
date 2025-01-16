@@ -11,7 +11,10 @@ print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 clients = {}  #username:socket
 
 
-def handle_message(username: str, chatid: str, time: str, message: str):
+def handle_message(client_socket, username: str, chatid: str, time: str, message: str):
+    for user in chatid:
+        if user != username:
+            client_socket.send(f"{username}(Time:{time}:{message}".encode("utf-8"))
     ...
 
 
@@ -19,12 +22,13 @@ def login(username: str, password: str):
     return True
 
 
-def create_user(clientusername: str, password: str):
+def create_user(client_socket, username: str, password: str):
     if not clients[username]:
         clients[username] = hash(password)
-        client_socket
+        client_socket.send("Created".encode("utf-8"))
         return True
     else:
+        client_socket.send("Username already exits".encode("utf-8"))
         return False
 
 
