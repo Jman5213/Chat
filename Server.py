@@ -1,5 +1,8 @@
 import socket
 import threading
+import sqlite3
+from queue import Queue
+
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5213
@@ -9,13 +12,50 @@ server.bind((SERVER_IP, SERVER_PORT))
 print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 
 clients = {}  #username:socket
+chats = {}  #chat_id:[users]
+
+def init_db():
+    conn = sqlite3.connect("server.db", check_same_thread=False)
+    cursor = conn.cursor()
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chats (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_id TEXT,
+            username TEXT,
+            message TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clients (
+            username TEXT NOT NULL PRIMARY KEY,
+            password TEXT NOT NULL ,
+            user_id INTEGER NOT NULL
+        )
+    ''')
+
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS clients_chatroom (
+             username TEXT
+             
+             
+        )
+    ''')
+
+    conn.commit()
+    conn.close()
+
+def save_chat():
+    ...
 
 
 def handle_message(client_socket, username: str, chatid: str, time: str, message: str):
     for user in chatid:
         if user != username:
             client_socket.send(f"{username}(Time:{time}:{message}".encode("utf-8"))
-    ...
+
 
 
 def login(username: str, password: str):
