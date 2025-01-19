@@ -1,8 +1,10 @@
+import hashlib
 import socket
 import threading
-import sqlite3
-from queue import Queue
-
+import os
+import database as db
+import base64
+from opcode import haslocal
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5213
@@ -14,38 +16,26 @@ print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 clients = {}  #username:socket
 chats = {}  #chat_id:[users]
 
-def init_db():
-    conn = sqlite3.connect("server.db", check_same_thread=False)
-    cursor = conn.cursor()
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS chats (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_id TEXT,
-            username TEXT,
-            message TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
+def generate_salt():
+    # 128 bit salt value
+    salt = os.urandom(16)
+    return salt
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS clients (
-            username TEXT NOT NULL PRIMARY KEY,
-            password TEXT NOT NULL ,
-            user_id INTEGER NOT NULL
-        )
-    ''')
 
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS clients_chatroom (
-             username TEXT
-             
-             
-        )
-    ''')
-
-    conn.commit()
-    conn.close()
+def hash_password(password: str):
+    salt = generate_salt()
+    iterations = 100_000
+    hash_value = hashlib.pbkdf2_hmac(
+        "sha512",
+        password.encode("utf-8"),
+        salt,
+        iterations
+    )
+    password_hash = salt + hash_value
+    password_hash = base64.b64encode(password_hash).decode("utf-8")
+    return_value = p
+    return
 
 def save_chat():
     ...
@@ -64,8 +54,10 @@ def login(username: str, password: str):
 
 def create_user(client_socket, username: str, password: str):
     if not clients[username]:
-        clients[username] = hash(password)
+        hashed_password = hash_password(password)
+        salt, clients[username] = hashed_password[:16], hashed_password[16:]
         client_socket.send("Created".encode("utf-8"))
+        db.add_user(username, clients[username], salt, )
         return True
     else:
         client_socket.send("Username already exits".encode("utf-8"))
@@ -149,4 +141,5 @@ if __name__ == "__main__":
         "LCH": leave_chat,
         "LGT": logout
     }
+    db.init_db()
     start()
