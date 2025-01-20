@@ -29,9 +29,9 @@ def init_db() -> bool :
                 user_id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 password TEXT NOT NULL,
-                salt TEXT NOT NULL,
+                salt BLOB NOT NULL,
                 hash_algo TEXT NOT NULL,
-                iterations INTEGER NOT NULL,
+                iterations INTEGER NOT NULL
             )
         ''')
         cursor.execute('''
@@ -39,26 +39,26 @@ def init_db() -> bool :
                 user_id INTEGER NOT NULL,
                 chatroom_id INTEGER NOT NULL,
                 PRIMARY KEY (user_id, chatroom_id),
-                FOREIGN KEY (user_id) REFERENCES clients(id),
+                FOREIGN KEY (user_id) REFERENCES clients(user_id),
                 FOREIGN KEY (chatroom_id) REFERENCES chatrooms(id)
             )
         ''')
 
         conn.commit()
         print("Database initialized")
+        return True
     except sqlite3.OperationalError:
         print("Database initialization error")
+        return False
     except Exception as e:
         print(f"Database initialization error: {e}")
+        return False
     finally:
         if conn is not None:
             conn.close()
-            return True
-        else:
-            return False
 
 
-def add_user(username: str, password: str, salt: str, hash_algo: str, iterations: int):
+def add_user(username: str, password: str, salt: bytes, hash_algo: str, iterations: int):
     conn = None
     try:
         conn = sqlite3.connect("server.db", check_same_thread=False)

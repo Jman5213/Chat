@@ -4,7 +4,8 @@ import threading
 import os
 import database as db
 import base64
-from opcode import haslocal
+from typing import Tuple
+
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5213
@@ -17,25 +18,26 @@ clients = {}  #username:socket
 chats = {}  #chat_id:[users]
 
 
-def generate_salt():
+def generate_salt() ->bytes:
     # 128 bit salt value
     salt = os.urandom(16)
     return salt
 
 
-def hash_password(password: str):
+def hash_password(password: str) -> tuple[str, bytes, str, int]:
     salt = generate_salt()
     iterations = 100_000
-    hash_value = hashlib.pbkdf2_hmac(
-        "sha512",
-        password.encode("utf-8"),
-        salt,
-        iterations
-    )
-    password_hash = salt + hash_value
-    password_hash = base64.b64encode(password_hash).decode("utf-8")
-    return_value = p
-    return
+    function = "pbkdf2_hmac"
+    hash_value = base64.b64encode(
+        hashlib.pbkdf2_hmac(
+            "sha512",
+            password.encode("utf-8"),
+            salt,
+            iterations
+        )
+    ).decode("utf-8")
+    return_value = (hash_value, salt, function, iterations)
+    return return_value
 
 def save_chat():
     ...
@@ -54,10 +56,9 @@ def login(username: str, password: str):
 
 def create_user(client_socket, username: str, password: str):
     if not clients[username]:
-        hashed_password = hash_password(password)
-        salt, clients[username] = hashed_password[:16], hashed_password[16:]
+        hashed_info = hash_password(password)
+        db.add_user(username, hashed_info[0], hashed_info[1], hashed_info[2], hashed_info[3])#
         client_socket.send("Created".encode("utf-8"))
-        db.add_user(username, clients[username], salt, )
         return True
     else:
         client_socket.send("Username already exits".encode("utf-8"))
