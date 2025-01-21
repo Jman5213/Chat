@@ -74,23 +74,23 @@ def start():
 if __name__ == "__main__":
     """
     commands:
-    MSG <username> <chatid> <time/date> <message>  (message)
+    MSG <username> <chatid> <time/date> <message>       (message)
         MSGSENT
-    LGN <username> <password>                      (login)
+    LGN <username> <password>                           (login)
         SUCCESS/FAILURE
-    CTU <username> <password>                      (create user)
+    CTU <username> <password>                          (create user) use hashlib to hash passwords with salt and PBKDF2 with lots of iterations, then store the salt and iterations with the password. When we lookup a user, verify the password with these values and a hash like sha256 https://www.askpython.com/python/examples/storing-retrieving-passwords-securely
         CREATED
-    CTC <username> <chatsettings>                  (create chat)
+    CTC <username> <chatsettings>                       (create chat)
         CREATED
-    DLU <username> <password>                      (delete user)
+    DLU <username> <password>                           (delete user)
         DELETED
-    DLC <username> <password>                      (delete chat)
+    DLC <username> <password>                           (delete chat)
         DELETED
-    JCH <username> <chatid>                        (join chat)
+    JCH <username> <chatid>                             (join chat)
         CHTJOIN
-    LCH <username> <chatid>                        (leave chat)
+    LCH <username> <chatid>                             (leave chat)
         CHTLEFT
-    LGT <username>                                 (logout)
+    LGT <username>                                      (logout)
         ULOGOUT
     """
 
