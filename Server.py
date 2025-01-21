@@ -18,26 +18,6 @@ clients = {}  #username:socket
 chats = {}  #chat_id:[users]
 
 
-def generate_salt() ->bytes:
-    # 128 bit salt value
-    salt = os.urandom(16)
-    return salt
-
-
-def hash_password(password: str) -> tuple[str, bytes, str, int]:
-    salt = generate_salt()
-    iterations = 100_000
-    function = "pbkdf2_hmac"
-    hash_value = base64.b64encode(
-        hashlib.pbkdf2_hmac(
-            "sha512",
-            password.encode("utf-8"),
-            salt,
-            iterations
-        )
-    ).decode("utf-8")
-    return_value = (hash_value, salt, function, iterations)
-    return return_value
 
 def save_chat():
     ...
@@ -56,10 +36,12 @@ def login(username: str, password: str):
 
 def create_user(client_socket, username: str, password: str):
     if not clients[username]:
-        hashed_info = hash_password(password)
-        db.add_user(username, hashed_info[0], hashed_info[1], hashed_info[2], hashed_info[3])#
-        client_socket.send("Created".encode("utf-8"))
-        return True
+        if db.add_user(username, password):
+            client_socket.send("Created".encode("utf-8"))
+            return True
+        else:
+            client_socket.send("Unsuccessful".encode("utf-8"))
+            return False
     else:
         client_socket.send("Username already exits".encode("utf-8"))
         return False

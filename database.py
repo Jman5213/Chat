@@ -1,7 +1,69 @@
 import sqlite3
+import hashlib
+from os import urandom
+from base64 import b64encode
 
-from pyasn1.type.univ import Boolean
 
+################################################################################
+
+################################################################################
+def generate_salt() ->bytes:
+    # 128 bit salt value
+    salt = urandom(16)
+    return salt
+
+
+def hash_password(password: str, salt = None) -> tuple[str, bytes, str, int]:
+    if salt is None:
+        salt = generate_salt()
+    iterations = 100_000
+    function = "pbkdf2_hmac"
+    hash_value = b64encode(
+        hashlib.pbkdf2_hmac(
+            "sha512",
+            password.encode("utf-8"),
+            salt,
+            iterations
+        )
+    ).decode("utf-8")
+    return_value = (hash_value, salt, function, iterations)
+    return return_value
+################################################################################
+
+################################################################################
+
+
+def get_connection():
+    """Simply returns the database connection"""
+    conn = sqlite3.connect("server.db", check_same_thread=False)
+    conn.execute("PRAGMA foreign_keys = ON;")
+    return conn
+
+
+def exists(table: str, value: str) -> bool:
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        if table == "clients":
+            column = "username"
+        elif table == "chatrooms":
+            column = "chat_name"
+        else:
+            return False
+
+
+        query = f"SELECT  1 FROM {table} WHERE {column} = ? LIMIT 1;"
+        cursor.execute(query, (value,))
+        result = cursor.fetchone()
+        return True if result else False
+    finally:
+        if conn:
+            conn.close()
+################################################################################
+
+################################################################################
 
 def init_db() -> bool :
     """
@@ -11,7 +73,7 @@ def init_db() -> bool :
     """
     conn = None
     try:
-        conn = sqlite3.connect("server.db", check_same_thread=False)
+        conn = get_connection()
         cursor = conn.cursor()
 
         cursor.execute('''
@@ -34,6 +96,14 @@ def init_db() -> bool :
                 iterations INTEGER NOT NULL
             )
         ''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS chatrooms (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            chat_name TEXT NOT NULL
+            )
+        ''')
+
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS clients_chatroom (
                 user_id INTEGER NOT NULL,
@@ -47,8 +117,8 @@ def init_db() -> bool :
         conn.commit()
         print("Database initialized")
         return True
-    except sqlite3.OperationalError:
-        print("Database initialization error")
+    except sqlite3.OperationalError as e:
+        print(f"Database operational error: {e}")
         return False
     except Exception as e:
         print(f"Database initialization error: {e}")
@@ -58,24 +128,82 @@ def init_db() -> bool :
             conn.close()
 
 
-def add_user(username: str, password: str, salt: bytes, hash_algo: str, iterations: int):
+
+
+def add_user(username: str, password_plaintext: str) -> bool:
+    """
+    This function adds a user to the database
+    :param password_plaintext:
+    :param username: username of the user
+    :return: True/False
+    """
     conn = None
     try:
-        conn = sqlite3.connect("server.db", check_same_thread=False)
+        password, salt, hash_algo, iterations = hash_password(password_plaintext)
+    except ValueError as e:
+        print(f"Password hashing error: {e}")
+        return False
+
+    try:
+        if not username or not password:
+            print("Username or password is empty")
+            return False
+        conn = get_connection()
         cursor = conn.cursor()
         cursor.execute('''
         INSERT INTO clients(username, password, salt, hash_algo, iterations)
         VALUES(?, ?, ?, ?, ?)
         ''', (username, password, salt, hash_algo, iterations))
         conn.commit()
-    except sqlite3.OperationalError:
-        print("Database initialization error")
+        print(f"User [{username}] successfully added")
+        return True
+    except sqlite3.OperationalError as e:
+        print(f"Database initialization error: {e}")
+        return False
     except sqlite3.IntegrityError:
         print("Database integrity error: Username already exists")
+        return False
     except Exception as e:
         print(f"An error occurred: {e}")
+        return False
     finally:
         if conn is not None:
             conn.close()
 
+
+def confirm_login(username: str, password_plaintext: str) -> bool:
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''
+            SELECT password, salt, hash_algo, iterations
+            FROM clients
+            WHERE username = ?
+        ''', (username,))
+
+        row = cursor.fetchone()
+        if row is None:
+            print(f"User [{username}] does not exist")
+            return False
+        stored_password, salt, hash_algo, iterations = row
+
+        if hash_algo == "pbkdf2_hmac":
+            hashed_password = hash_password(password_plaintext, salt=salt)[0]
+            if hashed_password == stored_password:
+                print("Successful login")
+                return True
+            else:
+                print("Wrong password")
+                return False
+        else:
+            print(f"Error: [{hash_algo}] is not supported")
+            return False
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return False
+    finally:
+        if conn is not None:
+            conn.close()
 
