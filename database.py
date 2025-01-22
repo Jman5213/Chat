@@ -5,8 +5,10 @@ from base64 import b64encode
 
 
 ################################################################################
-
+#                              HASHING FUNCTIONS                               #
 ################################################################################
+
+
 def generate_salt() ->bytes:
     # 128 bit salt value
     salt = urandom(16)
@@ -28,8 +30,10 @@ def hash_password(password: str, salt = None) -> tuple[str, bytes, str, int]:
     ).decode("utf-8")
     return_value = (hash_value, salt, function, iterations)
     return return_value
-################################################################################
 
+
+################################################################################
+#                        STANDARD, MULTI-USE FUNCTIONS                         #
 ################################################################################
 
 
@@ -41,6 +45,11 @@ def get_connection():
 
 
 def exists(table: str, value: str) -> bool:
+    """
+    :param table: clients or chatrooms
+    :param value: value being tested
+    :return: true if item exists, false otherwise
+    """
     conn = None
     try:
         conn = get_connection()
@@ -61,9 +70,12 @@ def exists(table: str, value: str) -> bool:
     finally:
         if conn:
             conn.close()
-################################################################################
+
 
 ################################################################################
+#                                DB FUNCTIONS                                  #
+################################################################################
+
 
 def init_db() -> bool :
     """
@@ -128,21 +140,19 @@ def init_db() -> bool :
             conn.close()
 
 
-
-
-def add_user(username: str, password_plaintext: str) -> bool:
+def add_user(username: str, password_plaintext: str) -> bool | None:
     """
     This function adds a user to the database
     :param password_plaintext:
     :param username: username of the user
-    :return: True/False
+    :return: True/False, None if an error occurred
     """
     conn = None
     try:
         password, salt, hash_algo, iterations = hash_password(password_plaintext)
     except ValueError as e:
         print(f"Password hashing error: {e}")
-        return False
+        return None
 
     try:
         if not username or not password:
@@ -159,19 +169,25 @@ def add_user(username: str, password_plaintext: str) -> bool:
         return True
     except sqlite3.OperationalError as e:
         print(f"Database initialization error: {e}")
-        return False
+        return None
     except sqlite3.IntegrityError:
         print("Database integrity error: Username already exists")
         return False
     except Exception as e:
         print(f"An error occurred: {e}")
-        return False
+        return None
     finally:
         if conn is not None:
             conn.close()
 
 
-def confirm_login(username: str, password_plaintext: str) -> bool:
+def confirm_login(username: str, password_plaintext: str) -> bool | None:
+    """
+    This function confirms the login of a user
+    :param username: username the user entered
+    :param password_plaintext: password the user entered
+    :return:True/False, None if an error occurred
+    """
     conn = None
     try:
         conn = get_connection()
@@ -198,11 +214,11 @@ def confirm_login(username: str, password_plaintext: str) -> bool:
                 return False
         else:
             print(f"Error: [{hash_algo}] is not supported")
-            return False
+            return None
 
     except Exception as e:
         print(f"Error: {e}")
-        return False
+        return None
     finally:
         if conn is not None:
             conn.close()

@@ -6,6 +6,7 @@ import database as db
 import base64
 from typing import Tuple
 
+from database import confirm_login
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5213
@@ -15,11 +16,10 @@ server.bind((SERVER_IP, SERVER_PORT))
 print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 
 clients = {}  #username:socket
-chats = {}  #chat_id:[users]
 
 
 
-def save_chat():
+def save_chat(chatid: str, username: str, time: str, message: str):
     ...
 
 
@@ -30,14 +30,22 @@ def handle_message(client_socket, username: str, chatid: str, time: str, message
 
 
 
-def login(username: str, password: str):
-    return True
+def login(client_socket,username: str, password: str):
+    if confirm_login(username, password) is True:
+        client_socket.send("Logged in".encode("utf-8"))
+        return True
+    elif confirm_login(username, password) is None:
+        client_socket.send("An error occurred. Please try again.".encode("utf-8"))
+        return None
+    else:
+        client_socket.send("Invalid username or password.".encode("utf-8"))
+        return False
 
 
 def create_user(client_socket, username: str, password: str):
-    if not clients[username]:
+    if not db.exists("clients", username):
         if db.add_user(username, password):
-            client_socket.send("Created".encode("utf-8"))
+            client_socket.send("Created!".encode("utf-8"))
             return True
         else:
             client_socket.send("Unsuccessful".encode("utf-8"))
@@ -76,7 +84,7 @@ def handle_client(client_socket):
         message = client_socket.recv(1024).decode()
         try:
             command, *args = message.split()
-            commands[command](*args)
+            commands[command](client_socket, *args)
         except:
             client_socket.close()
             break
