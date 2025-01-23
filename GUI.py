@@ -48,8 +48,7 @@ def login_process():
     window['-STARTFRAME-'].update(visible=False)
     window['-LOGINFRAME-'].update(visible=True)
     attempts = 0
-    while attempts < 3:
-        attempts += 1
+    while True:
         event, values = window.read()
         if event == sg.WIN_CLOSED:
             logout()
@@ -57,6 +56,10 @@ def login_process():
             window['-STARTFRAME-'].update(visible=True)
             window['-CREATEFRAME-'].update(visible=False)
             window['-LOGINFRAME-'].update(visible=False)
+            window['-LGNUSERNAME-'].update(value='')
+            window['-LGNPASSWORD-'].update(value='')
+            window['-INVALID-'].update(visible=False)
+            window['-SERVERERROR-'].update(visible=False)
             return
         if event == '-LGNUSERNAME-' or event == '-LGNPASSWORD-':
             if values['-LGNUSERNAME-'] != '' and values['-LGNPASSWORD-'] != '':
@@ -64,10 +67,15 @@ def login_process():
             else:
                 window['-OK-'].update(disabled=True)
         if event == '-OK-':
-            login = request_login(values['-LGNUSERNAME-'], values['-LGNPASSWORD-'])  # True/False
-            if login:
-                USERNAME = values['-LGNUSERNAME-']
-                load_main_page()
+            try:
+                login = request_login(values['-LGNUSERNAME-'], values['-LGNPASSWORD-'])  # True/False
+                if login:
+                    USERNAME = values['-LGNUSERNAME-']
+                    load_main_page()
+                else:
+                    window['-INVALID-'].update(visible=True)
+            except Exception as e:
+                window['-SERVERERROR-'].update(visible=True)
 
 
 def create_account():
@@ -82,6 +90,12 @@ def create_account():
             window['-STARTFRAME-'].update(visible=True)
             window['-CREATEFRAME-'].update(visible=False)
             window['-LOGINFRAME-'].update(visible=False)
+            window['-ERROR-'].update(visible=False)
+            window['-PASSERROR-'].update(visible=False)
+            window['-SERVERROR-'].update(visible=False)
+            window['-CRTUSERNAME-'].update(value='')
+            window['-CRTPASSWORD-'].update(value='')
+            window['-CONFPASSWORD-'].update(value='')
             return
         if event == '-CRTUSERNAME-' or event == '-CRTPASSWORD-' or event == '-CONFPASSWORD-':
             if values['-CRTUSERNAME-'] != '' and values['-CRTPASSWORD-'] != '' and values['-CONFPASSWORD-'] != '':

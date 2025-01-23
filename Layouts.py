@@ -19,7 +19,8 @@ create_account_frame = [
 ]
 
 login_frame = [
-    [sg.Push(), sg.Text("Incorrect Username/Password combination", colors='red', key='-ERROR-', visible=False),
+    [sg.Push(), sg.Text("Incorrect Username/Password combination", colors='red', key='-INVALID-', visible=False),
+     sg.Text("Server Error", colors='red', key="-SERVERERROR-", visible=False),
      sg.Push()],
     [sg.Push(), sg.Text("Username:"), sg.InputText(key='-LGNUSERNAME-', do_not_clear=True, enable_events=True),
      sg.Push()],
