@@ -223,3 +223,5 @@ def confirm_login(username: str, password_plaintext: str) -> bool | None:
         if conn is not None:
             conn.close()
 
+
+def

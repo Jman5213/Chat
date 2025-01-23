@@ -19,15 +19,19 @@ clients = {}  #username:socket
 
 
 
-def save_chat(chatid: str, username: str, time: str, message: str):
-    ...
+def save_chat(chat_id: str, username: str, time: str, message: str):
+    directory = os.path.join(os.getcwd(), "chats")
+    os.makedirs(directory, exist_ok=True)
+    file_path = os.path.join(directory, f"{chat_id}.txt")
+    with open(file_path, "w") as file:
+        file.write(f"{username}(Time: {time}): {message}")
 
 
-def handle_message(client_socket, username: str, chatid: str, time: str, message: str):
-    for user in chatid:
+def handle_message(client_socket, username: str, chat_id: str, time: str, message: str):
+    for user in chat_id:
         if user != username:
             client_socket.send(f"{username}(Time:{time}:{message}".encode("utf-8"))
-
+            save_chat(chat_id, username, time, message)
 
 
 def login(client_socket,username: str, password: str):
