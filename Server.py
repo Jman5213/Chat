@@ -1,10 +1,11 @@
-import hashlib
 import socket
 import threading
 import os
+from time import sleep
+from win32con import FILE_NAME_OPENED
+
 import database as db
-import base64
-from typing import Tuple
+from random import randint
 
 from database import confirm_login
 
@@ -23,8 +24,16 @@ def save_chat(chat_id: str, username: str, time: str, message: str):
     directory = os.path.join(os.getcwd(), "chats")
     os.makedirs(directory, exist_ok=True)
     file_path = os.path.join(directory, f"{chat_id}.txt")
-    with open(file_path, "w") as file:
-        file.write(f"{username}(Time: {time}): {message}")
+    tries = 0
+    while tries < 6:
+        try:
+            with open(file_path, "w") as file:
+                file.write(f"{username}(Time: {time}): {message}")
+                tries = 6
+        except Exception as e:
+            tries += 1
+            print(e)
+            sleep(0.01*(randint(1, 100)))
 
 
 def handle_message(client_socket, username: str, chat_id: str, time: str, message: str):
