@@ -100,8 +100,6 @@ def init_db() -> bool :
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             chat_name TEXT NOT NULL,
             owner_id INTEGER NOT NULL,
-            password TEXT,
-            join_code TEXT,
             FOREIGN KEY (owner_id) REFERENCES clients(user_id)
             )
         ''')
