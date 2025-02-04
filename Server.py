@@ -1,5 +1,13 @@
 import socket
 import threading
+import os
+from time import sleep
+from win32con import FILE_NAME_OPENED
+
+import database as db
+from random import randint
+
+from database import confirm_login
 
 SERVER_IP = "127.0.0.1"
 SERVER_PORT = 5213
@@ -11,20 +19,52 @@ print(f"Server listening on {SERVER_IP}:{SERVER_PORT}")
 clients = {}  #username:socket
 
 
-def handle_message(username: str, chatid: str, time: str, message: str):
-    ...
+
+def save_chat(chat_id: str, username: str, time: str, message: str):
+    directory = os.path.join(os.getcwd(), "chats")
+    os.makedirs(directory, exist_ok=True)
+    file_path = os.path.join(directory, f"{chat_id}.txt")
+    tries = 0
+    while tries < 6:
+        try:
+            with open(file_path, "w") as file:
+                file.write(f"{username}(Time: {time}): {message}")
+                tries = 6
+        except Exception as e:
+            tries += 1
+            print(e)
+            sleep(0.01*(randint(1, 100)))
 
 
-def login(username: str, password: str):
-    return True
+def handle_message(client_socket, username: str, chat_id: str, time: str, message: str):
+    for user in chat_id:
+        if user != username:
+            client_socket.send(f"{username}(Time:{time}:{message}".encode("utf-8"))
+            save_chat(chat_id, username, time, message)
 
 
-def create_user(clientusername: str, password: str):
-    if not clients[username]:
-        clients[username] = hash(password)
-        client_socket
+def login(client_socket,username: str, password: str):
+    if confirm_login(username, password) is True:
+        client_socket.send("Logged in".encode("utf-8"))
         return True
+    elif confirm_login(username, password) is None:
+        client_socket.send("An error occurred. Please try again.".encode("utf-8"))
+        return None
     else:
+        client_socket.send("Invalid username or password.".encode("utf-8"))
+        return False
+
+
+def create_user(client_socket, username: str, password: str):
+    if not db.exists("clients", username):
+        if db.add_user(username, password):
+            client_socket.send("Created!".encode("utf-8"))
+            return True
+        else:
+            client_socket.send("Unsuccessful".encode("utf-8"))
+            return False
+    else:
+        client_socket.send("Username already exits".encode("utf-8"))
         return False
 
 
@@ -57,7 +97,7 @@ def handle_client(client_socket):
         message = client_socket.recv(1024).decode()
         try:
             command, *args = message.split()
-            commands[command](*args)
+            commands[command](client_socket, *args)
         except:
             client_socket.close()
             break
@@ -105,4 +145,5 @@ if __name__ == "__main__":
         "LCH": leave_chat,
         "LGT": logout
     }
+    db.init_db()
     start()
