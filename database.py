@@ -5,8 +5,8 @@ from base64 import b64encode
 from typing import Optional
 
 
-CONN = sqlite3.connect("server.db", check_same_thread=False)
-CONN.execute("PRAGMA foreign_keys = ON;")
+conn = sqlite3.connect("server.db", check_same_thread=False)
+# conn.execute("PRAGMA foreign_keys = ON;")
 
 
 ################################################################################
@@ -48,9 +48,8 @@ def exists(table: str, value: str) -> bool:
     :param value: value being tested
     :return: true if item exists, false otherwise
     """
-    global CONN
-    try:
-        cursor = CONN.cursor()
+    with sqlite3.connect(table) as conn:
+        cursor = conn.conn()
 
         if table == "clients":
             column = "username"
@@ -64,9 +63,6 @@ def exists(table: str, value: str) -> bool:
         cursor.execute(query, (value,))
         result = cursor.fetchone()
         return True if result else False
-    finally:
-        if CONN:
-            CONN.close()
 
 
 ################################################################################
@@ -80,52 +76,48 @@ def init_db() -> bool :
     Prints a string describing success or errors
     Returns: True/False
     """
-    global CONN
     try:
-        cursor = CONN.cursor()
+        with sqlite3.connect("server.db") as conn:
+            cursor = conn.conn()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS clients (
+                    user_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    username TEXT NOT NULL,
+                    password TEXT NOT NULL,
+                    salt BLOB NOT NULL,
+                    hash_algo TEXT NOT NULL,
+                    iterations INTEGER NOT NULL
+                )
+            ''')
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS clients (
-                user_id INTEGER PRIMARY KEY AUTOINCREMENT,
-                username TEXT NOT NULL,
-                password TEXT NOT NULL,
-                salt BLOB NOT NULL,
-                hash_algo TEXT NOT NULL,
-                iterations INTEGER NOT NULL
-            )
-        ''')
+            cursor.execute('''
+            CREATE TABLE IF NOT EXISTS chatrooms (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                chat_name TEXT NOT NULL,
+                owner_id INTEGER NOT NULL,
+                FOREIGN KEY (owner_id) REFERENCES clients(user_id)
+                )
+            ''')
 
-        cursor.execute('''
-        CREATE TABLE IF NOT EXISTS chatrooms (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            chat_name TEXT NOT NULL,
-            owner_id INTEGER NOT NULL,
-            FOREIGN KEY (owner_id) REFERENCES clients(user_id)
-            )
-        ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS clients_chatroom (
+                    user_id INTEGER NOT NULL,
+                    chatroom_id INTEGER NOT NULL,
+                    PRIMARY KEY (user_id, chatroom_id),
+                    FOREIGN KEY (user_id) REFERENCES clients(user_id),
+                    FOREIGN KEY (chatroom_id) REFERENCES chatrooms(id)
+                )
+            ''')
 
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS clients_chatroom (
-                user_id INTEGER NOT NULL,
-                chatroom_id INTEGER NOT NULL,
-                PRIMARY KEY (user_id, chatroom_id),
-                FOREIGN KEY (user_id) REFERENCES clients(user_id),
-                FOREIGN KEY (chatroom_id) REFERENCES chatrooms(id)
-            )
-        ''')
-
-        CONN.commit()
-        print("Database initialized")
-        return True
+            conn.commit()
+            print("Database initialized")
+            return True
     except sqlite3.OperationalError as e:
         print(f"Database operational error: {e}")
         return False
     except Exception as e:
         print(f"Database initialization error: {e}")
         return False
-    finally:
-        if CONN is not None:
-            CONN.close()
 
 
 def add_user(username: str, password_plaintext: str) -> bool | None:
@@ -135,7 +127,6 @@ def add_user(username: str, password_plaintext: str) -> bool | None:
     :param username: username of the user
     :return: True/False, None if an error occurred
     """
-    global CONN
     try:
         password, salt, hash_algo, iterations = hash_password(password_plaintext)
     except ValueError as e:
@@ -146,18 +137,19 @@ def add_user(username: str, password_plaintext: str) -> bool | None:
         if not username or not password:
             print("Username or password is empty")
             return False
-        cursor = CONN.cursor()
-        if exists("clients", username):
-            print("Database integrity error: Username already exists")
-            return False
-        else:
-            cursor.execute('''
-            INSERT INTO clients(username, password, salt, hash_algo, iterations)
-            VALUES(?, ?, ?, ?, ?)
-            ''', (username, password, salt, hash_algo, iterations))
-            CONN.commit()
-            print(f"User [{username}] successfully added")
-            return True
+        with sqlite3.connect("server.db") as conn:
+            cursor = conn.conn()
+            if exists("clients", username):
+                print("Database integrity error: Username already exists")
+                return False
+            else:
+                cursor.execute('''
+                INSERT INTO clients(username, password, salt, hash_algo, iterations)
+                VALUES(?, ?, ?, ?, ?)
+                ''', (username, password, salt, hash_algo, iterations))
+                conn.commit()
+                print(f"User [{username}] successfully added")
+                return True
     except sqlite3.OperationalError as e:
         print(f"Database initialization error: {e}")
         return None
@@ -167,9 +159,6 @@ def add_user(username: str, password_plaintext: str) -> bool | None:
     except Exception as e:
         print(f"An error occurred: {e}")
         return None
-    finally:
-        if CONN is not None:
-            CONN.close()
 
 
 def confirm_login(username: str, password_plaintext: str) -> bool | None:
@@ -179,39 +168,36 @@ def confirm_login(username: str, password_plaintext: str) -> bool | None:
     :param password_plaintext: password the user entered
     :return:True/False, None if an error occurred
     """
-    global CONN
     try:
-        cursor = CONN.cursor()
-        cursor.execute('''
-            SELECT password, salt, hash_algo, iterations
-            FROM clients
-            WHERE username = ?
-        ''', (username,))
+        with sqlite3.connect("server.db") as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                SELECT password, salt, hash_algo, iterations
+                FROM clients
+                WHERE username = ?
+            ''', (username,))
 
-        row = cursor.fetchone()
-        if row is None:
-            print(f"User [{username}] does not exist")
-            return False
-        stored_password, salt, hash_algo, iterations = row
-
-        if hash_algo == "pbkdf2_hmac":
-            hashed_password = hash_password(password_plaintext, salt=salt)[0]
-            if hashed_password == stored_password:
-                print("Successful login")
-                return True
-            else:
-                print("Wrong password")
+            row = cursor.fetchone()
+            if row is None:
+                print(f"User [{username}] does not exist")
                 return False
-        else:
-            print(f"Error: [{hash_algo}] is not supported")
-            return None
+            stored_password, salt, hash_algo, iterations = row
+
+            if hash_algo == "pbkdf2_hmac":
+                hashed_password = hash_password(password_plaintext, salt=salt)[0]
+                if hashed_password == stored_password:
+                    print("Successful login")
+                    return True
+                else:
+                    print("Wrong password")
+                    return False
+            else:
+                print(f"Error: [{hash_algo}] is not supported")
+                return None
 
     except Exception as e:
         print(f"Error: {e}")
         return None
-    finally:
-        if CONN is not None:
-            CONN.close()
 
 
 def create_chatroom(username: str, chat_name: str, settings: dict) -> bool | None:
@@ -222,17 +208,17 @@ def create_chatroom(username: str, chat_name: str, settings: dict) -> bool | Non
     :param chat_name: Name of the chatroom
     :return: True/False, None if an error occurred
     """
-    global CONN
     try:
-        cursor = CONN.cursor()
-        if not exists("chatrooms", chat_name):
-            cursor.execute('''
-                INSERT INTO chatrooms(chat_name, owner_id)
-                VALUES(?, ?)''', (chat_name, username))
-            return True
-        else:
-            print("Already exists")
-            return False
+        with sqlite3.connect("server.db") as conn:
+            cursor = conn.cursor()
+            if not exists("chatrooms", chat_name):
+                cursor.execute('''
+                    INSERT INTO chatrooms(chat_name, owner_id)
+                    VALUES(?, ?)''', (chat_name, username))
+                return True
+            else:
+                print("Already exists")
+                return False
     except Exception as e:
         print(f"Error: {e}")
         return None
@@ -245,3 +231,6 @@ def join_chatroom(chat_name: str, username: str, password: Optional[str] = None,
         ...
     if join_code:
         ...
+
+
+q

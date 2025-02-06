@@ -10,7 +10,7 @@ from random import randint
 from database import confirm_login
 
 SERVER_IP = "127.0.0.1"
-SERVER_PORT = 5213
+SERVER_PORT = 54321
 
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 server.bind((SERVER_IP, SERVER_PORT))
